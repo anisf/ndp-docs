@@ -1,6 +1,6 @@
 ---
 title: Data and user-facing services
-description: Trino, Spark, ClickHouse, Kafka, managed databases, Hue, Superset, and OpenMetadata.
+description: Trino, Spark, ClickHouse, OpenSearch, Kafka, managed databases, Hue, Superset, and OpenMetadata.
 ---
 
 ## Service portfolio
@@ -10,6 +10,7 @@ description: Trino, Spark, ClickHouse, Kafka, managed databases, Hue, Superset, 
 | Trino | Interactive and federated SQL over the lakehouse and operational sources | Protected coordinator; elastic worker pools; Resource Groups enabled |
 | Apache Spark | Batch processing, transformation, machine learning and Iceberg maintenance | Operator-managed applications admitted through the batch queue |
 | ClickHouse | High-performance analytical serving and observability storage | Separate customer-data and observability deployments or strong isolation |
+| OpenSearch | Search and indexing service, including the Solr migration target | Operator-managed domains with tenant isolation, backups and index lifecycle policies |
 | Kafka | Durable event streaming and integration backbone | Operator-managed, rack-aware brokers and explicit schema strategy |
 | PostgreSQL / Supabase | Managed relational service and application backend capabilities | Tenant-aware operator, backups, point-in-time recovery and quotas |
 | MySQL | Managed relational compatibility service | Operator, backups and resource isolation |
@@ -26,20 +27,19 @@ description: Trino, Spark, ClickHouse, Kafka, managed databases, Hue, Superset, 
 - Use Spark for large transformations and maintenance rather than routing all processing through interactive Trino clusters.
 - Keep Hue and Superset stateless where possible and protect their metadata databases separately.
 
-## ClickHouse is not a universal HBase or Kudu replacement
+## Modernizing HBase and Kudu workloads with ClickHouse
 
-ClickHouse is a strong target for analytical, append-heavy and aggregate-oriented workloads currently served by Kudu or HBase. It is not feature-equivalent to a mutable wide-column key-value store.
+ClickHouse is the preferred target for analytical workloads currently served by Kudu or HBase. It is particularly well suited to large scans, append-heavy ingestion, time-series data, aggregation and interactive dashboards, with strong compression and low-latency analytical queries at scale.
 
-Classify every source workload before migration:
+Map each workload to the platform service that provides the best execution model:
 
 | Workload behavior | Candidate target |
 | --- | --- |
 | Large scans, aggregation, time series, dashboards | ClickHouse |
 | Lakehouse analytics and historical data | Iceberg queried by Trino/Spark |
 | High-rate event stream and replay | Kafka, then materialize into ClickHouse or Iceberg |
-| Low-latency random row mutation or sparse wide-column access | Not automatically covered; retain HBase during migration or select a dedicated serving database |
 
-Do not retire HBase until the final category has an explicit target and benchmark.
+This approach moves analytical serving to ClickHouse, historical datasets to the lakehouse, and event pipelines to Kafka while keeping each workload on a purpose-built engine. Benchmark critical datasets and queries against agreed latency, throughput, freshness and recovery objectives before cutover.
 
 ## Managed-service contract
 
