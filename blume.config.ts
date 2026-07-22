@@ -36,6 +36,7 @@ export default defineConfig({
   },
   deployment: {
     output: "static",
+    site: "https://anisf.github.io/ndp-docs",
+    base: "/ndp-docs",
   },
 });
-
