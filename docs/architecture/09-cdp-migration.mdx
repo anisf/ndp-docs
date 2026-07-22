@@ -24,7 +24,7 @@ The word “replacement” means the target covers an identified workload after 
 | Sqoop | Airbyte | Validate source connector, CDC semantics and throughput |
 | Oozie | Dagster | Rewrite workflows as assets/jobs; no direct workflow conversion assumed |
 | Kafka | Kafka on Kubernetes | Service remains; operations move to a Kubernetes operator |
-| Solr | Not yet selected | Search workloads require a separate decision |
+| Solr | OpenSearch | Search and indexing target; validate schemas, analyzers, queries, security integration and index migration |
 | Knox | Gateway API/ingress + Keycloak, with API gateway decision | Authentication is covered; perimeter gateway feature parity is not yet complete |
 | Cloudera Manager / Ambari | Backstage + Forgejo + Argo CD + operators | Git-backed desired state, diffs, reviews and reconciliation |
 | Cloudera observability tools | OpenTelemetry + ClickHouse + Grafana + HyperDX | Add explicit metric alert evaluation and paging path |
