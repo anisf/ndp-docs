@@ -1,0 +1,98 @@
+---
+title: Resource scheduling
+description: Shared daytime Trino and nighttime batch capacity using Koordinator, Koord-Queue, and engine-level queues.
+---
+
+## Objective
+
+NDP uses one shared compute estate for interactive SQL and batch processing. Trino workers expand during dashboard and ad-hoc demand; idle capacity is borrowed by Spark and other batch workloads, especially at night.
+
+Koordinator replaces the cluster resource-management role of YARN, but the mapping is not one-to-one. Kubernetes admission, pod scheduling, autoscaling and engine-internal queues remain separate layers.
+
+## Scheduling layers
+
+| Layer | Decision | Mechanism |
+| --- | --- | --- |
+| Batch admission | Which job may enter the cluster, and in what order? | Koord-Queue with Koordinator ElasticQuota |
+| Cluster allocation | Which tenant may use or borrow CPU and memory? | Koordinator ElasticQuota hierarchy |
+| Pod placement and QoS | Where does a pod run, and can it be throttled or evicted? | Koordinator, Kubernetes PriorityClass, topology constraints and reservations |
+| Workload autoscaling | How many Trino workers or service pods are needed? | HPA/KEDA or a purpose-built controller using service metrics |
+| Engine queueing | Which query or task runs next inside a service? | Trino Resource Groups, Dagster concurrency and engine-specific controls |
+
+## Recommended operating model
+
+Define a quota hierarchy such as:
+
+```text
+platform-root
+├── protected-system
+├── interactive
+│   ├── trino-production
+│   └── notebooks-and-hue
+└── batch
+    ├── spark
+    ├── dagster
+    └── airbyte
+```
+
+- `protected-system` has guaranteed capacity and cannot be borrowed below its minimum.
+- `interactive` has a daytime minimum, a maximum that can consume most of the compute pool, and high pod priority.
+- `batch` has a smaller guaranteed minimum but a large maximum, allowing it to borrow idle interactive capacity.
+- Batch jobs are queued before pod creation when their quota is unavailable, avoiding scheduler pressure and partial job startup.
+- Trino retains a non-zero floor at night for operational and unexpected query traffic.
+
+## Day and night behavior
+
+| Period | Trino | Batch workloads |
+| --- | --- | --- |
+| Business hours | Protected minimum; workers scale toward the pool maximum when query pressure rises | Use guaranteed batch quota and borrow only truly idle capacity |
+| Transition window | Scale-down is gradual and drains active work | New large jobs are admitted only when capacity is confirmed |
+| Night | Keep coordinators and a minimum worker pool | Borrow most unneeded interactive capacity; prioritize scheduled Spark and ingestion jobs |
+| Demand spike | Scale Trino up and stop admitting new low-priority batch work | Running work follows the agreed preemption policy; checkpointable work is preferred |
+
+Use time as a policy hint, not as the only signal. Queue depth, query latency, memory pressure, job deadlines and available capacity should drive decisions.
+
+## Trino-specific controls
+
+- Trino Resource Groups queue and prioritize queries by user, group, source, client tag and query type.
+- Kubernetes autoscaling changes worker capacity; it does not replace Trino Resource Groups.
+- Scale-down must drain workers or otherwise avoid interrupting active queries. Generic CPU-only HPA behavior is insufficient without workload-aware termination handling.
+- The coordinator should run on protected nodes and should not be colocated with burstable batch workers.
+- Autoscaling signals should include queued queries, running queries, memory utilization, worker saturation and latency objectives.
+
+## Spark and batch controls
+
+- Submit Spark applications through a Kubernetes-native Spark operator.
+- Represent each application as a queueable workload with tenant, priority, requested resources and deadline metadata.
+- Use gang scheduling only for workloads that require an all-or-nothing start.
+- Prefer suspend-and-admit behavior over creating thousands of unschedulable executor pods.
+- Mark checkpointable or restartable jobs explicitly before allowing aggressive preemption.
+
+## Koord-Queue versus Kueue
+
+Koord-Queue is the architectural default because it shares Koordinator's ElasticQuota model and avoids maintaining two quota systems. Validate every required workload integration before production adoption.
+
+Kueue remains the fallback if NDP needs a broader or more mature batch admission ecosystem than the selected Koord-Queue release provides. Do not let both systems control the same workload.
+
+Current design cautions:
+
+- Koord-Queue is newer than the core Koordinator scheduler features.
+- Some admission-check capabilities are still described as work in progress in Koordinator documentation.
+- Airbyte and Dagster do not automatically become queue-aware; their launched Kubernetes Jobs or custom resources need explicit integration.
+- Trino is a long-running service and should not be admitted as a batch job. Its queries stay under Trino Resource Groups.
+
+## Bare-metal autoscaling boundary
+
+Pod autoscaling can reuse free capacity immediately. Physical node autoscaling requires a separate machine-provisioning and power-management system with a supported Kubernetes autoscaler integration. If that system is absent, NDP has elastic workload allocation across a fixed hardware pool, not true hardware autoscaling.
+
+## Success measures
+
+- Interactive query latency remains within its service objective during batch pressure.
+- Batch utilization increases at night without destabilizing Trino.
+- No tenant exceeds its maximum or starves another tenant below its guaranteed minimum.
+- Queue wait time, borrowing, preemption, rejected jobs and worker drain events are observable.
+
+## References
+
+- [Koord-Queue](https://koordinator.sh/docs/user-manuals/queue-management)
+- [Trino Resource Groups](https://trino.io/docs/current/admin/resource-groups.html)

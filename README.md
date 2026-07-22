@@ -1,29 +1,36 @@
-# Blume documentation
+# NDP documentation
 
-Documentation for [Blume](https://useblume.dev/), a fast, AI-ready, Markdown-first documentation framework.
+Architecture documentation for NDP, an open-source, Kubernetes-native data
+platform intended to replace Cloudera CDP workloads on sovereign commodity
+bare-metal infrastructure.
 
-Blume turns a folder of Markdown or MDX files into a production-grade documentation site with:
+The documentation site is powered by [Blume](https://useblume.dev/). Blume is
+the documentation framework used to render the site; this repository documents
+NDP itself.
 
-- Zero-config navigation and theming
-- Full-text search, SEO, OG images, RSS, and sitemap support
-- Interactive OpenAPI and AsyncAPI references
-- Accessible Markdown components
-- Multiple content sources, including filesystem, GitHub, Notion, Sanity, and custom adapters
-- AI assistance, `llms.txt`, Markdown URLs, and a read-only MCP server
-- Internationalization, including right-to-left support
+## Local development
 
-## Documentation
+Requirements:
 
-The documentation source begins in [docs/index.mdx](docs/index.mdx).
+- Node.js 22.12 or newer
+- npm, pnpm, Yarn, or Bun
 
-## Official resources
+```bash
+npm install
+npm run dev
+```
 
-- Website: https://useblume.dev/
-- Documentation: https://useblume.dev/docs
-- CLI: https://useblume.dev/cli
-- Changelog: https://useblume.dev/changelog
-- Source code: linked from the official website
+Build the static site with:
 
-## Status
+```bash
+npm run build
+```
 
-This repository is being initialized as a dedicated documentation workspace. Pages will be expanded and verified against Blume's official documentation as the project evolves.
+The documentation source is under [`docs/`](docs/).
+
+## Version compatibility
+
+The project pins Astro, MDX, Scalar, and Vite transitive versions to the set
+used by Blume's upstream lockfile for Blume 1.1.3. This avoids incompatible
+newer transitive releases while keeping Blume itself on the current release.
+Review the pins whenever Blume is upgraded.

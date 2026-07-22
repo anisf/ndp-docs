@@ -1,0 +1,56 @@
+---
+title: Data and user-facing services
+description: Trino, Spark, ClickHouse, Kafka, managed databases, Hue, Superset, and OpenMetadata.
+---
+
+## Service portfolio
+
+| Service | Primary role | Deployment expectation |
+| --- | --- | --- |
+| Trino | Interactive and federated SQL over the lakehouse and operational sources | Protected coordinator; elastic worker pools; Resource Groups enabled |
+| Apache Spark | Batch processing, transformation, machine learning and Iceberg maintenance | Operator-managed applications admitted through the batch queue |
+| ClickHouse | High-performance analytical serving and observability storage | Separate customer-data and observability deployments or strong isolation |
+| Kafka | Durable event streaming and integration backbone | Operator-managed, rack-aware brokers and explicit schema strategy |
+| PostgreSQL / Supabase | Managed relational service and application backend capabilities | Tenant-aware operator, backups, point-in-time recovery and quotas |
+| MySQL | Managed relational compatibility service | Operator, backups and resource isolation |
+| Valkey | Managed cache and in-memory data structures | Operator, persistence profile and eviction policy by service plan |
+| SeaweedFS | Object storage service and Iceberg warehouse | Dedicated storage topology and S3 tenant controls |
+| Apache Hue | SQL workbench retained for familiar migration experience | OIDC through Keycloak; Trino is the primary query endpoint |
+| Superset | Dashboards and self-service BI | OIDC through Keycloak; governed Trino/ClickHouse connections |
+| OpenMetadata | Data catalog, discovery and governance workflows | Ingest metadata from all supported services |
+
+## Query-serving model
+
+- Use Trino for cross-source and lakehouse SQL, replacing the query-serving roles of HiveServer2 and Impala.
+- Use ClickHouse where data is deliberately modeled and loaded for low-latency analytical serving.
+- Use Spark for large transformations and maintenance rather than routing all processing through interactive Trino clusters.
+- Keep Hue and Superset stateless where possible and protect their metadata databases separately.
+
+## ClickHouse is not a universal HBase or Kudu replacement
+
+ClickHouse is a strong target for analytical, append-heavy and aggregate-oriented workloads currently served by Kudu or HBase. It is not feature-equivalent to a mutable wide-column key-value store.
+
+Classify every source workload before migration:
+
+| Workload behavior | Candidate target |
+| --- | --- |
+| Large scans, aggregation, time series, dashboards | ClickHouse |
+| Lakehouse analytics and historical data | Iceberg queried by Trino/Spark |
+| High-rate event stream and replay | Kafka, then materialize into ClickHouse or Iceberg |
+| Low-latency random row mutation or sparse wide-column access | Not automatically covered; retain HBase during migration or select a dedicated serving database |
+
+Do not retire HBase until the final category has an explicit target and benchmark.
+
+## Managed-service contract
+
+Each managed service needs the same platform contract:
+
+- Declarative provisioning through a Kubernetes operator or NDP controller.
+- Service plans defining size, availability, storage, backup, retention and support level.
+- Keycloak-integrated administration where supported.
+- Ranger or native authorization mapping where applicable.
+- Network policy, encryption, secret rotation and audit events.
+- Metrics, logs, traces, health checks and service-level objectives.
+- Backup, restore, upgrade and tenant offboarding workflows.
+
+The platform should not claim a service is managed until this lifecycle is automated and tested.

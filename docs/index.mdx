@@ -1,121 +1,63 @@
 ---
-title: Introduction
-description: Learn what Blume is and why it is useful for shipping modern documentation.
+title: NDP
+description: An open-source, Kubernetes-native data platform for replacing Cloudera CDP workloads on sovereign bare-metal infrastructure.
+sidebar:
+  order: 0
 ---
 
-# Introduction
+NDP combines a lakehouse, interactive SQL, distributed processing, ingestion,
+orchestration, managed data services, and a common operational control plane.
 
-Blume is an open-source, Markdown-first documentation framework powered by Astro and Vite. It is designed to turn documentation content into a polished, production-ready site with very little application code or configuration.
+:::note
+This documentation describes NDP. Technologies shared with other platforms are
+implementation references only and do not define the identity or scope of NDP.
+:::
 
-## Why Blume?
+## Architecture at a glance
 
-A Blume project can start as a folder of Markdown files. Navigation is inferred from the content structure, while search, theming, SEO, and common documentation features are available by default.
+```mermaid
+flowchart TB
+    users[Users, BI tools and data engineers] --> entry[Hue, Superset, APIs and Backstage]
+    entry --> services[Trino, Spark, ClickHouse, Airbyte and Dagster]
+    services --> lakehouse[Iceberg tables and managed data services]
+    lakehouse --> object[SeaweedFS object storage]
+    services --> compute[Koordinator shared compute pool]
+    object --> platform[Kubernetes on Talos Linux]
+    compute --> platform
+    platform --> infrastructure[Cilium networking and LINSTOR/DRBD storage]
+    infrastructure --> hardware[Commodity bare-metal servers]
 
-This makes Blume a good fit for:
-
-- Product and API documentation
-- Open-source project documentation
-- Internal knowledge bases
-- Developer portals
-- AI-readable documentation sites
-
-## Quick start
-
-Create a new project with the Blume CLI:
-
-```bash
-npx blume init
+    identity[Keycloak identity] -.-> entry
+    authorization[Apache Ranger authorization] -.-> services
+    gitops[Backstage, Forgejo and Argo CD] -.-> platform
+    telemetry[OpenTelemetry, ClickHouse, Grafana and HyperDX] -.-> platform
 ```
 
-Install Blume in an existing JavaScript project:
+The solid path is the main data and compute flow. Dotted components are
+transverse capabilities applied across the platform.
 
-```bash
-npm install blume
-```
+## Platform objectives
 
-A minimal configuration can look like this:
+- Replace identified CDP workloads without pretending every product mapping is
+  one-to-one.
+- Run on immutable Talos Kubernetes clusters installed on commodity bare metal.
+- Use open standards such as OIDC, S3, Iceberg REST, OpenTelemetry, SQL, and
+  Kubernetes APIs at integration boundaries.
+- Protect daytime interactive Trino workloads while allowing batch processing
+  to borrow the same compute pool at night.
+- Make configuration and policy changes reviewable, attributable, reproducible,
+  and reversible through Git.
 
-```ts title="blume.config.ts"
-import { defineConfig } from "blume";
+## Explore the architecture
 
-export default defineConfig({
-  title: "My Documentation",
-});
-```
-
-Once the project is initialized, add Markdown or MDX pages to the configured content directory and run the development server.
-
-## Content sources
-
-Blume reads local Markdown by default and can also combine content from other sources. The official site demonstrates filesystem, GitHub, Sanity, Notion, and custom source adapters.
-
-```ts title="blume.config.ts"
-import { defineConfig } from "blume";
-
-export default defineConfig({
-  content: {
-    sources: [
-      { type: "filesystem", root: "docs" },
-      {
-        type: "mdx-remote",
-        github: {
-          owner: "example",
-          repo: "documentation",
-          path: "docs",
-        },
-      },
-    ],
-  },
-});
-```
-
-All sources are rendered through the same documentation components.
-
-## Built for people and AI
-
-Blume supports machine-readable documentation workflows out of the box:
-
-- `llms.txt` can expose an index and corpus for language models.
-- Pages can be retrieved as Markdown by appending `.md` to a URL.
-- An MCP server can provide read-only search and page-reading tools to compatible agents.
-- An in-page AI assistant can answer questions using a configurable model provider or OpenAI-compatible endpoint.
-
-## Interactive API documentation
-
-Drop an OpenAPI or AsyncAPI specification into a Blume project to render interactive API references with endpoints, schemas, and a “Try it” playground.
-
-## Components
-
-Blume includes accessible, theme-aware components for common documentation patterns, including:
-
-- Callouts, cards, steps, tabs, and accordions
-- Code groups and package-install tabs
-- File trees, panels, tiles, and prompts
-- Mermaid diagrams and KaTeX math
-- Diffs, badges, type tables, and live component examples
-
-Components are designed to be used directly from Markdown or MDX without requiring imports for every page.
-
-## Production features
-
-Blume includes features commonly needed when publishing documentation:
-
-- Local search in development and production
-- SEO metadata, Open Graph images, sitemap, RSS, and JSON-LD
-- Dark mode and theming
-- Internationalization with right-to-left support
-- Changelog and blog support
-- Custom pages and export options
-
-## Next steps
-
-The documentation set should grow around the following guides:
-
-1. Installation and project creation
-2. Pages, navigation, frontmatter, and Markdown syntax
-3. Components and MDX extensions
-4. Configuration and theming
-5. Content sources
-6. OpenAPI and AsyncAPI references
-7. AI, `llms.txt`, and MCP
-8. Deployment, SEO, analytics, changelogs, and internationalization
+- [Architecture overview](/architecture)
+- [Infrastructure and storage](/architecture/infrastructure)
+- [Resource scheduling](/architecture/resource-scheduling)
+- [Lakehouse and metadata](/architecture/lakehouse)
+- [Data services](/architecture/data-services)
+- [Ingestion and orchestration](/architecture/ingestion-orchestration)
+- [Identity and authorization](/architecture/security)
+- [Observability](/architecture/observability)
+- [GitOps control plane](/architecture/control-plane)
+- [CDP migration](/architecture/cdp-migration)
+- [Open decisions](/architecture/open-decisions)

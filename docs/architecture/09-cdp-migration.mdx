@@ -1,0 +1,81 @@
+---
+title: CDP equivalence and migration
+description: Workload-level mappings from Cloudera CDP and a phased migration plan.
+---
+
+## Equivalence matrix
+
+The word “replacement” means the target covers an identified workload after validation. It does not imply protocol or operational parity.
+
+| CDP / Hadoop capability | NDP target | Migration status and boundary |
+| --- | --- | --- |
+| HDFS | SeaweedFS S3 object storage | Target for Iceberg data; not an HDFS semantic clone |
+| YARN | Koordinator + Koord-Queue + Kubernetes | Replaces resource allocation and batch admission; engines keep their own controls |
+| Hive Metastore | Apache Polaris | HMS remains as a temporary compatibility bridge |
+| HiveServer2 | Trino | Query-serving replacement; Hive-specific compatibility must be tested |
+| Impala | Trino | Primary interactive lakehouse SQL replacement |
+| Apache Spark | Apache Spark on Kubernetes | Engine remains; deployment, security and scheduling model changes |
+| Apache Hue | Apache Hue | Retained as a familiar SQL workbench, primarily connected to Trino |
+| Apache Atlas | OpenMetadata | Metadata, discovery, ownership and lineage target |
+| Apache Ranger | Apache Ranger + NDP adapters | Familiar central policy manager; adapter coverage is a product deliverable |
+| Kudu | ClickHouse or Iceberg, by workload | ClickHouse for analytical serving; no automatic feature parity |
+| HBase | ClickHouse for analytical use cases only | Random-mutation and wide-column serving remains an explicit gap |
+| NiFi | Airbyte + Dagster + Kafka + Spark | Covers ingestion/orchestration/processing; protocol-flow cases may retain NiFi initially |
+| Sqoop | Airbyte | Validate source connector, CDC semantics and throughput |
+| Oozie | Dagster | Rewrite workflows as assets/jobs; no direct workflow conversion assumed |
+| Kafka | Kafka on Kubernetes | Service remains; operations move to a Kubernetes operator |
+| Solr | Not yet selected | Search workloads require a separate decision |
+| Knox | Gateway API/ingress + Keycloak, with API gateway decision | Authentication is covered; perimeter gateway feature parity is not yet complete |
+| Cloudera Manager / Ambari | Backstage + Forgejo + Argo CD + operators | Git-backed desired state, diffs, reviews and reconciliation |
+| Cloudera observability tools | OpenTelemetry + ClickHouse + Grafana + HyperDX | Add explicit metric alert evaluation and paging path |
+| Data visualization | Superset | Validate governed connectivity, semantic model and dashboard migration |
+
+## Migration phases
+
+### Phase 0: inventory and acceptance criteria
+
+- Inventory datasets, jobs, queries, permissions, service-level objectives and operational dependencies.
+- Classify workloads by semantics instead of source product alone.
+- Define acceptance tests and rollback for each migration wave.
+
+### Phase 1: platform foundation
+
+- Deploy Talos Kubernetes, Cilium, LINSTOR, SeaweedFS, Keycloak, GitOps and observability.
+- Establish tenant, identity, network, storage and backup conventions.
+- Install Hive Metastore for migration compatibility and Polaris for target validation.
+
+### Phase 2: lakehouse and query path
+
+- Migrate selected datasets to Iceberg on SeaweedFS.
+- Validate Spark and Trino behavior, performance and permissions.
+- Connect Hue, Superset and OpenMetadata.
+
+### Phase 3: pipelines and scheduling
+
+- Rewrite Oozie and simple NiFi flows using Dagster and Airbyte.
+- Admit Spark and batch workloads through the selected queue layer.
+- Introduce shared day/night capacity policies only after baseline service objectives are measured.
+
+### Phase 4: policy migration
+
+- Normalize Keycloak identities and groups.
+- Convert Ranger policies into the canonical NDP resource model.
+- Validate each native plugin or adapter with allow, deny, mask, row-filter, drift and outage tests.
+
+### Phase 5: cutover and retirement
+
+- Cut over domains in independent waves.
+- Move authoritative Iceberg catalogs from HMS to Polaris where supported.
+- Retire legacy services only after observability proves stable behavior and rollback windows expire.
+
+## Required migration evidence
+
+For every workload, retain:
+
+- Source and target architecture.
+- Data reconciliation results.
+- Performance and concurrency comparison.
+- Security-policy equivalence tests.
+- Failure, recovery and rollback tests.
+- Operational ownership and runbooks.
+- Final decision to retire, retain or redesign the source service.
