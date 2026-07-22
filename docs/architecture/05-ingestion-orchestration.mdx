@@ -1,0 +1,54 @@
+---
+title: Ingestion and orchestration
+description: The responsibility split between Airbyte, Dagster, Spark, Kafka, and Trino.
+---
+
+## Responsibility split
+
+| Component | Responsibility |
+| --- | --- |
+| Airbyte | Connector-driven batch and change-data-capture ingestion |
+| Dagster | Asset-oriented orchestration, schedules, dependencies, retries and operational visibility |
+| Apache Spark | Distributed transformation and heavy processing |
+| Kafka | Event transport, replay and decoupling between producers and consumers |
+| Trino | Interactive SQL and selected SQL transformations, not general workflow orchestration |
+
+## Mapping from NiFi and older ETL tools
+
+Airbyte and Dagster replace important parts of NiFi and traditional ETL/ELT suites, but they are not a complete one-to-one replacement.
+
+| Existing pattern | NDP target |
+| --- | --- |
+| Scheduled source-to-destination connector sync | Airbyte |
+| CDC ingestion | Airbyte connector where validated, delivered through Kafka or directly to a target |
+| Pipeline dependencies, schedules and retries | Dagster |
+| Data transformations | Spark, Trino or dbt-style projects orchestrated by Dagster |
+| Streaming transport and replay | Kafka |
+| Protocol mediation, edge routing and interactive flow design | Migration gap; retain NiFi initially or evaluate a focused Kafka Connect/Apache Camel solution |
+
+## Execution model
+
+1. Dagster owns the logical data asset and orchestration graph.
+2. Airbyte performs connector syncs but exposes status and lineage to Dagster and OpenMetadata.
+3. Spark applications are submitted as queue-aware Kubernetes workloads.
+4. Kafka decouples continuous event producers and consumers.
+5. Iceberg is the default durable analytical destination; ClickHouse is an explicit serving destination.
+
+Avoid nested schedulers that each retry independently without coordination. One system must own the final run state and retry budget for every pipeline.
+
+## Resource controls
+
+- Assign tenant, priority, deadline and quota metadata to every launched workload.
+- Configure Dagster concurrency independently from cluster admission; both controls are required.
+- Limit Airbyte connector pods by tenant and connector type.
+- Use Koord-Queue for queueable Kubernetes Jobs and Spark applications after integration testing.
+- Send interactive repair or backfill operations through explicit priority classes rather than bypassing admission.
+
+## Migration sequence
+
+1. Inventory NiFi flows by connector, protocol, transformation, state, delivery guarantee and latency.
+2. Move simple connector syncs to Airbyte.
+3. Move schedules and dependency graphs to Dagster.
+4. Move heavy transformations to Spark or governed SQL projects.
+5. Keep complex event-driven or edge flows on NiFi until a tested equivalent exists.
+6. Validate replay, idempotency, schema evolution, lineage and alerting before cutover.

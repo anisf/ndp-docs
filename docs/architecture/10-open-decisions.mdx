@@ -1,0 +1,60 @@
+---
+title: Open decisions and delivery risks
+description: Architecture decisions, product gaps, proofs of concept, and delivery risks that remain open.
+---
+
+These items should become short architecture decision records before production commitments.
+
+## Priority decisions
+
+| Decision | Why it matters | Recommended next action |
+| --- | --- | --- |
+| Koord-Queue production readiness versus Kueue | Determines batch workload integrations, admission features and operational risk | Build a representative Spark/Kubernetes Job test and compare queueing, quotas, priority, preemption and failure behavior |
+| Bare-metal machine lifecycle and node autoscaling | Talos and Koordinator do not provision physical hardware | Select provisioning, BMC and autoscaler integration; otherwise document a fixed hardware pool |
+| Ranger adapter coverage | ClickHouse, SeaweedFS, Polaris and databases do not share one native Ranger enforcement model | Produce a capability matrix and prototype the two hardest adapters before promising centralized parity |
+| Git versus Ranger direct edits | Two writable policy sources create conflicts | Make Git authoritative and restrict direct Ranger writes, or document a reliable bidirectional conflict model |
+| Secret management | GitOps requires safe credential storage and rotation | Select OpenBao/Vault, External Secrets, SOPS or another supported design |
+| HBase serving workloads | ClickHouse does not cover all random-access and mutation patterns | Profile HBase tables and retain HBase until a serving database is selected and benchmarked |
+| NiFi protocol and edge flows | Airbyte and Dagster do not cover every event-driven flow | Classify flows and evaluate Kafka Connect/Apache Camel or retain NiFi for the uncovered set |
+| Knox/perimeter gateway equivalence | OIDC alone does not provide every gateway, proxy and API-management feature | Define north-south protocols and select Gateway API plus an API-gateway profile |
+| Kafka schema governance | Event compatibility requires an explicit schema system | Select and integrate an open schema registry and compatibility policy |
+| Data quality execution | OpenMetadata catalogs quality metadata but test execution needs ownership and tooling | Define whether Dagster/Spark and OpenMetadata tests are sufficient or select a dedicated engine |
+
+## Platform engineering decisions
+
+- Kubernetes and Talos supported-version policy.
+- Operators for PostgreSQL, MySQL, Kafka, ClickHouse, SeaweedFS and Spark.
+- Multi-cluster model, failure-domain boundaries and tenant isolation tier.
+- Container registry, image signing, software bill of materials and vulnerability management.
+- Certificate management, DNS and service exposure.
+- Backup catalog, immutable backup storage and disaster-recovery targets.
+- Upgrade orchestration for stateful services and data formats.
+- Chargeback/showback and capacity forecasting.
+- Alert routing and on-call integration.
+- Support policy for custom Ranger adapters and Backstage plugins.
+
+## Proofs of concept
+
+Run these before freezing the architecture:
+
+1. Daytime Trino burst followed by nighttime Spark borrowing, including safe Trino scale-down.
+2. Iceberg concurrent read/write and maintenance through Trino and Spark using Polaris and SeaweedFS.
+3. Ranger policy propagation to one native-plugin service and one adapter-based service, including outage behavior.
+4. Backstage configuration change through Forgejo review and Argo CD reconciliation, including drift and rollback.
+5. Node, disk and rack failure during a mixed query and ingestion load.
+6. Restore of the catalog, object-store metadata, identity system and policy state into a clean cluster.
+
+## Decision-record template
+
+```text
+Title:
+Status: proposed | accepted | superseded
+Context:
+Decision:
+Alternatives considered:
+Consequences:
+Security and operational impact:
+Migration and rollback:
+Evidence:
+Owner and review date:
+```

@@ -1,0 +1,65 @@
+---
+title: Architecture
+description: The layered NDP architecture and the boundaries between infrastructure, data services, and transverse platform capabilities.
+sidebar:
+  order: 0
+---
+
+This page explains NDP once. The linked focus pages contain the detailed design
+for each concern so that scheduling, security, observability, and migration do
+not overload the main architecture narrative.
+
+## Layer model
+
+| Layer | Responsibility | Primary components |
+| --- | --- | --- |
+| Hardware | Physical compute, disks, and network | Commodity bare-metal servers |
+| Operating system | Immutable Kubernetes nodes | Talos Linux |
+| Kubernetes infrastructure | Connectivity, load balancing, and block storage | Cilium BGP/LB, LINSTOR and DRBD |
+| Shared compute | Quotas, placement, priority, colocation, and batch admission | Koordinator, Koord-Queue, Kubernetes autoscaling |
+| Lakehouse | Durable objects, table format, catalog, and metadata | SeaweedFS, Iceberg, Polaris, transitional Hive Metastore, OpenMetadata |
+| Data services | Query, processing, serving, and managed data systems | Trino, Spark, ClickHouse, Kafka, PostgreSQL, MySQL, Valkey |
+| Data movement | Ingestion, orchestration, and transformation | Airbyte, Dagster, Spark, Kafka |
+| User experience | SQL workbench, BI, and service catalog | Apache Hue, Superset, Backstage |
+| Transverse services | Identity, authorization, GitOps, and observability | Keycloak, Ranger, Forgejo, Argo CD, OpenTelemetry, Grafana, HyperDX |
+
+## Core decisions
+
+- Iceberg on S3-compatible SeaweedFS is the target lakehouse storage model.
+  HDFS compatibility is a migration concern, not the target architecture.
+- Apache Polaris is the target Iceberg catalog. Hive Metastore is a migration
+  bridge and remains only while workloads still require it.
+- Trino replaces the interactive query-serving roles of HiveServer2 and Impala.
+  Spark remains the distributed processing engine.
+- Koordinator manages the shared Kubernetes compute pool. Koord-Queue is the
+  preferred batch admission layer, subject to workload validation.
+- Keycloak authenticates users and workloads. Ranger centrally manages data
+  permissions, using native plugins or maintained NDP adapters.
+- Git is the desired-state system of record. Backstage provides the user
+  workflow, Forgejo stores reviewed changes, and Argo CD reconciles Kubernetes.
+- OpenTelemetry is the telemetry standard. A dedicated ClickHouse deployment
+  stores observability data for Grafana and HyperDX.
+
+## Focus documents
+
+1. [Infrastructure and storage](/architecture/infrastructure)
+2. [Resource scheduling](/architecture/resource-scheduling)
+3. [Lakehouse and metadata](/architecture/lakehouse)
+4. [Data and user-facing services](/architecture/data-services)
+5. [Ingestion and orchestration](/architecture/ingestion-orchestration)
+6. [Identity and authorization](/architecture/security)
+7. [Observability](/architecture/observability)
+8. [GitOps control plane](/architecture/control-plane)
+9. [CDP equivalence and migration](/architecture/cdp-migration)
+10. [Open decisions and delivery risks](/architecture/open-decisions)
+
+## Design principles
+
+- Separate authentication, authorization, Kubernetes admission policy, network
+  policy, and workload scheduling. They solve different problems.
+- Treat every claimed CDP replacement as a workload mapping, not a product-name
+  substitution.
+- Isolate platform control services from customer data workloads through
+  namespaces, quotas, failure domains, and dedicated node pools where needed.
+- Keep the overview stable and move implementation detail into focused pages
+  and architecture decision records.

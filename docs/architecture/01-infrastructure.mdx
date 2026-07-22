@@ -1,0 +1,60 @@
+---
+title: Infrastructure and storage
+description: Bare-metal, Talos Linux, Cilium networking, and the storage foundations for NDP.
+---
+
+## Purpose
+
+This layer turns commodity bare-metal servers into a stable Kubernetes substrate. It must remain independent from the data products running above it.
+
+## Stack
+
+| Concern | Component | Role |
+| --- | --- | --- |
+| Server lifecycle | External bare-metal provisioning system | Firmware, installation, replacement and power lifecycle; Talos does not provision physical servers |
+| Node operating system | Talos Linux | Immutable, API-managed Kubernetes nodes |
+| Container networking | Cilium | Pod networking, NetworkPolicy, observability and service exposure |
+| External routing and load balancing | Cilium BGP/LB | Advertise service addresses to the physical network |
+| Persistent block storage | LINSTOR + DRBD | Replicated Kubernetes volumes for stateful platform services |
+| Object storage | SeaweedFS | S3-compatible storage for Iceberg data and platform object-storage use cases |
+
+## Failure-domain design
+
+- Label nodes and disks by site, rack, host, storage class and hardware profile.
+- Align Kubernetes topology constraints, LINSTOR replicas and application replicas with those failure domains.
+- Reserve dedicated node pools for Kubernetes control-plane services, storage services and critical platform databases.
+- Run customer compute on separate elastic pools so batch pressure cannot evict the control plane.
+- Define storage classes by behavior, for example `replicated-block`, `local-nvme` and `object-data`, instead of exposing implementation names to users.
+
+## Storage placement rules
+
+LINSTOR/DRBD and application-level replication must not be stacked by default. Double replication increases write amplification, recovery time and capacity cost.
+
+Recommended starting point:
+
+| Workload | Preferred storage pattern |
+| --- | --- |
+| PostgreSQL, Keycloak, Ranger and Argo CD state | Replicated LINSTOR volumes plus application-aware backups |
+| SeaweedFS metadata services | Replicated persistent volumes, validated against the chosen SeaweedFS topology |
+| SeaweedFS volume data | Local/JBOD disks with SeaweedFS replication or erasure coding; validate whether DRBD adds value |
+| ClickHouse analytical data | Local NVMe with ClickHouse replication and/or object-storage-backed durability |
+| Kafka logs | Local disks with Kafka replication across failure domains |
+| Spark shuffle | Ephemeral local NVMe; never treat shuffle as durable data |
+
+The final placement for each stateful system requires benchmark and recovery testing.
+
+## Networking model
+
+- Cilium provides the pod network and enforces namespace and service-level network policy.
+- BGP advertises approved `LoadBalancer` addresses to the data-center network.
+- Gateway API or an ingress/API-gateway implementation exposes user and service endpoints.
+- Default-deny east-west policies are applied by tenant and service boundary.
+- Authentication and authorization do not replace network policy; each is an independent control.
+
+## Operational requirements
+
+- Automated Talos upgrades with tested rollback and quorum-preserving sequencing.
+- Hardware inventory, out-of-band management and disk-health monitoring.
+- Backups stored outside the failure domain of the primary cluster.
+- Restore tests for etcd, platform databases, Ranger policies, catalogs and object-store metadata.
+- Capacity models for CPU, memory, local NVMe, replicated block storage, object storage and network oversubscription.
